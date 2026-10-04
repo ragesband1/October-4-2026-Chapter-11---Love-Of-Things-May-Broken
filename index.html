@@ -1,0 +1,1156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chapter 11 - Love Of Things May Broken</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800;900&family=Rajdhani:wght@500;600;700&display=swap');
+        
+        * {
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Rajdhani', sans-serif;
+            background-color: #050508;
+            color: #fff;
+        }
+        .font-orbitron {
+            font-family: 'Orbitron', sans-serif;
+        }
+        canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+        }
+        .neon-border {
+            box-shadow: 0 0 15px rgba(236, 72, 153, 0.4), inset 0 0 15px rgba(236, 72, 153, 0.2);
+            border: 1px solid rgba(236, 72, 153, 0.6);
+        }
+        .neon-border-blue {
+            box-shadow: 0 0 15px rgba(59, 130, 246, 0.4), inset 0 0 15px rgba(59, 130, 246, 0.2);
+            border: 1px solid rgba(59, 130, 246, 0.6);
+        }
+        .glass-panel {
+            background: rgba(13, 16, 27, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+        /* Custom scrollbars */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.3);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(236, 72, 153, 0.5);
+            border-radius: 3px;
+        }
+        @keyframes pulse-glow {
+            0%, 100% { opacity: 0.8; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.03); }
+        }
+        .pulse-anim {
+            animation: pulse-glow 2s infinite ease-in-out;
+        }
+    </style>
+</head>
+<body class="relative w-screen h-screen overflow-hidden select-none">
+
+    <div id="canvas-container" class="absolute inset-0 w-full h-full z-0"></div>
+
+    <!-- Top Left: Player Status -->
+    <div class="absolute top-4 left-4 z-10 flex flex-col gap-2 w-72 pointer-events-none">
+        <div class="glass-panel p-3 rounded-xl neon-border-blue flex items-center gap-3">
+            <div class="relative w-14 h-14 rounded-full bg-gradient-to-tr from-purple-600 to-pink-500 flex items-center justify-center font-orbitron text-xl font-bold border-2 border-cyan-400 shadow-lg">
+                <span id="player-avatar-icon"><i class="fa-solid font-bold fa-shield-halved"></i></span>
+                <div class="absolute -bottom-1 -right-1 bg-yellow-500 text-black font-bold text-xs px-1.5 py-0.5 rounded-full border border-black" id="hud-level">LV1</div>
+            </div>
+            <div class="flex-1">
+                <div class="flex justify-between items-center mb-1">
+                    <span class="font-orbitron font-bold text-sm tracking-wide text-cyan-300" id="hud-name">NEYRI</span>
+                    <span class="text-xs text-pink-400 font-semibold" id="hud-class">Beltsmith</span>
+                </div>
+                
+                <!-- HP Bar -->
+                <div class="w-full bg-gray-900/80 rounded-full h-3 border border-red-900/50 overflow-hidden mb-1">
+                    <div id="hp-bar" class="bg-gradient-to-r from-red-600 to-pink-500 h-full w-full transition-all duration-200"></div>
+                </div>
+                
+                <!-- Stamina Bar -->
+                <div class="w-full bg-gray-900/80 rounded-full h-2 border border-cyan-900/50 overflow-hidden mb-1">
+                    <div id="stamina-bar" class="bg-gradient-to-r from-cyan-500 to-blue-400 h-full w-full transition-all duration-100"></div>
+                </div>
+
+                <!-- XP Bar -->
+                <div class="w-full bg-gray-900/80 rounded-full h-1.5 border border-yellow-900/50 overflow-hidden">
+                    <div id="xp-bar" class="bg-yellow-400 h-full w-0% transition-all duration-300"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="glass-panel p-2 rounded-lg flex justify-between px-4 text-sm font-semibold border border-white/10 text-gray-300">
+            <span class="text-yellow-400"><i class="fa-solid fa-coins mr-1"></i> <span id="hud-gold">0</span> USD</span>
+            <span class="text-purple-400"><i class="fa-solid fa-gem mr-1"></i> Stolen Items: <span id="hud-items-recovered">0/5</span></span>
+        </div>
+    </div>
+
+    <!-- Top Right: Minimap & Quests -->
+    <div class="absolute top-4 right-4 z-10 flex flex-col items-end gap-3 pointer-events-none">
+        <!-- Minimap Radar -->
+        <div class="relative w-36 h-36 rounded-full glass-panel border-2 border-cyan-500/60 overflow-hidden shadow-lg">
+            <canvas id="minimap-canvas" width="144" height="144" class="w-full h-full"></canvas>
+            <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <div class="w-2 h-2 bg-cyan-400 rounded-full border border-white animate-ping"></div>
+            </div>
+            <div class="absolute top-1 left-1/2 -translate-x-1/2 text-[9px] font-orbitron text-cyan-400 font-bold bg-black/50 px-1 rounded">N</div>
+        </div>
+
+        <!-- Quest Tracker -->
+        <div class="glass-panel p-3 rounded-xl neon-border w-72 pointer-events-auto">
+            <div class="flex items-center justify-between border-b border-pink-500/30 pb-1 mb-2">
+                <span class="font-orbitron text-xs font-bold text-pink-400 uppercase tracking-wider"><i class="fa-solid fa-scroll mr-1"></i> Active Quest</span>
+                <span class="text-[10px] bg-pink-950 text-pink-300 px-2 py-0.5 rounded border border-pink-700" id="quest-chapter">Chapter 11</span>
+            </div>
+            <h4 class="font-bold text-sm text-yellow-300 mb-1" id="quest-title">1. The Strange encounters</h4>
+            <p class="text-xs text-gray-300 leading-snug" id="quest-desc">Explore the dark street and investigate the strangers near the Traffic Light.</p>
+            <div class="mt-2 text-[11px] text-cyan-300 font-semibold" id="quest-objective">Objective: Approach the Traffic Lights (0/1)</div>
+        </div>
+    </div>
+
+    <!-- Controls Visual Bar (Bottom Center) -->
+    <div class="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 glass-panel px-6 py-2.5 rounded-full border border-white/20 flex items-center gap-6 text-xs text-gray-300 pointer-events-none">
+        <div class="flex items-center gap-1.5"><kbd class="px-2 py-1 bg-gray-800 rounded border border-gray-600 font-mono text-cyan-400 font-bold">WASD</kbd> Move</div>
+        <div class="flex items-center gap-1.5"><kbd class="px-2 py-1 bg-gray-800 rounded border border-gray-600 font-mono text-cyan-400 font-bold">SHIFT</kbd> Sprint</div>
+        <div class="flex items-center gap-1.5"><kbd class="px-2 py-1 bg-gray-800 rounded border border-gray-600 font-mono text-yellow-400 font-bold">SPACE</kbd> Attack</div>
+        <div class="flex items-center gap-1.5"><kbd class="px-2 py-1 bg-gray-800 rounded border border-gray-600 font-mono text-pink-400 font-bold">E</kbd> Interact / Talk</div>
+        <div class="flex items-center gap-1.5"><kbd class="px-2 py-1 bg-gray-800 rounded border border-gray-600 font-mono text-purple-400 font-bold">Q</kbd> Mind Shield</div>
+        <div class="flex items-center gap-1.5"><kbd class="px-2 py-1 bg-gray-800 rounded border border-gray-600 font-mono text-red-400 font-bold">F</kbd> Belt Strike</div>
+    </div>
+
+    <!-- Action Bar Buttons for Touch / UI Clicks -->
+    <div class="absolute bottom-16 right-6 z-10 flex flex-col gap-2 md:hidden">
+        <button id="btn-attack" class="w-14 h-14 bg-yellow-500/80 active:bg-yellow-600 text-black font-bold rounded-full border-2 border-yellow-300 shadow-lg text-xl"><i class="fa-solid fa-hand-fist"></i></button>
+        <div class="flex gap-2">
+            <button id="btn-skill-q" class="w-12 h-12 bg-purple-600/80 text-white font-bold rounded-full border border-purple-300 text-sm">Q</button>
+            <button id="btn-skill-f" class="w-12 h-12 bg-red-600/80 text-white font-bold rounded-full border border-red-300 text-sm">F</button>
+            <button id="btn-interact" class="w-12 h-12 bg-cyan-600/80 text-white font-bold rounded-full border border-cyan-300 text-sm">E</button>
+        </div>
+    </div>
+
+    <!-- Navigation Menu Buttons (Top Left Center) -->
+    <div class="absolute top-4 left-80 z-10 flex gap-2">
+        <button id="btn-toggle-inv" class="glass-panel hover:bg-pink-900/50 text-pink-300 px-3 py-1.5 rounded-lg border border-pink-500/40 text-xs font-orbitron font-bold transition flex items-center gap-1.5">
+            <i class="fa-solid fa-briefcase"></i> Inventory [I]
+        </button>
+        <button id="btn-toggle-skills" class="glass-panel hover:bg-cyan-900/50 text-cyan-300 px-3 py-1.5 rounded-lg border border-cyan-500/40 text-xs font-orbitron font-bold transition flex items-center gap-1.5">
+            <i class="fa-solid fa-sitemap"></i> Skills [K]
+        </button>
+        <button id="btn-toggle-story" class="glass-panel hover:bg-yellow-900/50 text-yellow-300 px-3 py-1.5 rounded-lg border border-yellow-500/40 text-xs font-orbitron font-bold transition flex items-center gap-1.5">
+            <i class="fa-solid fa-book-open"></i> Story Log [L]
+        </button>
+    </div>
+
+    <div id="dialogue-modal" class="hidden absolute inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end justify-center p-6">
+        <div class="w-full max-w-3xl glass-panel neon-border p-6 rounded-2xl flex flex-col md:flex-row gap-6 relative">
+            <div class="w-24 h-24 md:w-32 md:h-32 rounded-xl bg-gradient-to-br from-purple-800 to-indigo-900 border-2 border-pink-400 flex items-center justify-center text-4xl shrink-0 shadow-lg" id="dialogue-portrait">
+                👤
+            </div>
+            <div class="flex-1 flex flex-col justify-between">
+                <div>
+                    <h3 class="font-orbitron text-xl font-bold text-yellow-400 mb-1" id="dialogue-speaker">NPC Name</h3>
+                    <p class="text-sm text-gray-200 leading-relaxed font-sans" id="dialogue-text">Dialogue text content goes here...</p>
+                </div>
+                <div class="mt-4 flex justify-end gap-3" id="dialogue-choices">
+                    <button id="dialogue-next-btn" class="px-5 py-2 bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white font-orbitron font-bold text-xs rounded-lg border border-pink-300 shadow-md transition">
+                        NEXT <i class="fa-solid fa-chevron-right ml-1"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="inventory-modal" class="hidden absolute inset-0 z-40 bg-black/70 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="w-full max-w-4xl glass-panel neon-border p-6 rounded-2xl relative max-h-[90vh] flex flex-col">
+            <div class="flex justify-between items-center border-b border-pink-500/30 pb-3 mb-4">
+                <h2 class="font-orbitron text-xl font-bold text-pink-400 flex items-center gap-2">
+                    <i class="fa-solid fa-briefcase"></i> BELTBAG & POSSESSIONS INVENTORY
+                </h2>
+                <button class="close-modal text-gray-400 hover:text-white text-2xl font-bold">&times;</button>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 overflow-y-auto pr-2">
+                <!-- Possessions Recovery Status -->
+                <div class="md:col-span-2 bg-black/40 p-4 rounded-xl border border-white/10">
+                    <h3 class="font-orbitron text-sm font-bold text-cyan-300 mb-3 border-b border-cyan-800/50 pb-1">
+                        Stolen / Recovered Belongings (Neyri's Beltbag Items)
+                    </h3>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-3" id="inventory-items-grid">
+                        <!-- Items injected by JS -->
+                    </div>
+                </div>
+
+                <!-- Equipment & Stats Overview -->
+                <div class="bg-black/40 p-4 rounded-xl border border-white/10 flex flex-col justify-between">
+                    <div>
+                        <h3 class="font-orbitron text-sm font-bold text-yellow-400 mb-3 border-b border-yellow-800/50 pb-1">
+                            Character Stats
+                        </h3>
+                        <ul class="text-xs space-y-2 text-gray-300">
+                            <li class="flex justify-between"><span>Attack Power:</span> <strong class="text-white" id="stat-atk">15</strong></li>
+                            <li class="flex justify-between"><span>Defense:</span> <strong class="text-white" id="stat-def">8</strong></li>
+                            <li class="flex justify-between"><span>Mind Resistance:</span> <strong class="text-cyan-300" id="stat-res">10%</strong></li>
+                            <li class="flex justify-between"><span>Max HP:</span> <strong class="text-red-400" id="stat-maxhp">100</strong></li>
+                            <li class="flex justify-between"><span>Max Stamina:</span> <strong class="text-blue-400" id="stat-maxstam">100</strong></li>
+                        </ul>
+                    </div>
+
+                    <div class="mt-4 pt-4 border-t border-white/10">
+                        <div class="text-xs text-gray-400 italic">
+                            "If you love the things you buy, protect them from strangers!" — Alitobee
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="skills-modal" class="hidden absolute inset-0 z-40 bg-black/70 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="w-full max-w-3xl glass-panel neon-border-blue p-6 rounded-2xl relative max-h-[90vh] flex flex-col">
+            <div class="flex justify-between items-center border-b border-cyan-500/30 pb-3 mb-4">
+                <div>
+                    <h2 class="font-orbitron text-xl font-bold text-cyan-400 flex items-center gap-2">
+                        <i class="fa-solid fa-sitemap"></i> BELTSMITH SKILL TREE
+                    </h2>
+                    <span class="text-xs text-yellow-300">Available Skill Points: <strong id="skill-points-display">0</strong></span>
+                </div>
+                <button class="close-modal text-gray-400 hover:text-white text-2xl font-bold">&times;</button>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 overflow-y-auto p-2">
+                <!-- Skill 1 -->
+                <div class="bg-slate-900/80 p-4 rounded-xl border border-purple-500/40 flex flex-col justify-between">
+                    <div>
+                        <div class="text-3xl text-purple-400 mb-2"><i class="fa-solid fa-brain"></i></div>
+                        <h4 class="font-orbitron font-bold text-sm text-purple-300 mb-1">Anti-Hypnosis Shield (Q)</h4>
+                        <p class="text-xs text-gray-300 mb-3">Creates a protective psychological barrier preventing Modus Operandi brainwash & reducing damage by 50% for 5s.</p>
+                    </div>
+                    <button id="learn-skill-1" class="w-full py-2 bg-purple-700 hover:bg-purple-600 disabled:opacity-50 text-white font-orbitron font-bold text-xs rounded border border-purple-400 transition">
+                        UPGRADE (1 SP)
+                    </button>
+                </div>
+
+                <!-- Skill 2 -->
+                <div class="bg-slate-900/80 p-4 rounded-xl border border-red-500/40 flex flex-col justify-between">
+                    <div>
+                        <div class="text-3xl text-red-400 mb-2"><i class="fa-solid fa-shield-cat"></i></div>
+                        <h4 class="font-orbitron font-bold text-sm text-red-300 mb-1">Belt Bag Lock (F)</h4>
+                        <p class="text-xs text-gray-300 mb-3">Performs a 360-degree high-impact whip strike with Neyri's reinforced belt, dealing heavy AOE damage to surrounding thieves.</p>
+                    </div>
+                    <button id="learn-skill-2" class="w-full py-2 bg-red-700 hover:bg-red-600 disabled:opacity-50 text-white font-orbitron font-bold text-xs rounded border border-red-400 transition">
+                        UPGRADE (1 SP)
+                    </button>
+                </div>
+
+                <!-- Skill 3 -->
+                <div class="bg-slate-900/80 p-4 rounded-xl border border-yellow-500/40 flex flex-col justify-between">
+                    <div>
+                        <div class="text-3xl text-yellow-400 mb-2"><i class="fa-solid fa-building-shield"></i></div>
+                        <h4 class="font-orbitron font-bold text-sm text-yellow-300 mb-1">Barangay Blotter Strike</h4>
+                        <p class="text-xs text-gray-300 mb-3">Passive skill: Increases base Attack Power by +10 and grants +20% movement speed bonus while in dark streets.</p>
+                    </div>
+                    <button id="learn-skill-3" class="w-full py-2 bg-yellow-600 hover:bg-yellow-500 disabled:opacity-50 text-white font-orbitron font-bold text-xs rounded border border-yellow-400 transition">
+                        UPGRADE (1 SP)
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="story-modal" class="hidden absolute inset-0 z-40 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="w-full max-w-3xl glass-panel neon-border p-6 rounded-2xl relative max-h-[85vh] flex flex-col">
+            <div class="flex justify-between items-center border-b border-pink-500/30 pb-3 mb-4">
+                <h2 class="font-orbitron text-lg font-bold text-yellow-400">
+                    Chapter 11: Bedtime Stories - Love Of Things May Broken
+                </h2>
+                <button class="close-modal text-gray-400 hover:text-white text-2xl font-bold">&times;</button>
+            </div>
+
+            <div class="overflow-y-auto pr-3 text-sm leading-relaxed text-gray-300 space-y-3 font-sans">
+                <p class="text-xs text-pink-400 font-semibold uppercase tracking-widest">February 14, 2020 — Valentine's Day Special</p>
+                <p>Once upon a time, things weren’t supposed to be broken, like the person named <strong>Alitobee</strong>. He felt that things bought with hard-earned money should be loved and never wasted or stolen by kidnappers and swindlers. That’s why: <em>"Love Of Things May Not Be Broken"</em>.</p>
+                <p>The young girl, <strong>Neyri</strong>, born on Valentine’s Day, loved the things she owned—her belt bags, cellphones, bank accounts, and ID. She kept them safely inside her belt bag while going to college.</p>
+                <p>One fateful evening near the <strong>Dark Traffic Lights</strong> and the <strong>Gasoline Station</strong>, Neyri encountered suspicious strangers—the infamous <strong>Modus Operandi</strong>. They tricked her with fake stories about an injured friend in the hospital and swindled her into surrendering her belt bag under threats of fake police charges.</p>
+                <p>After realizing she was hypnotized and swindled out of her items and a promised $50,000 reward, Neyri filed a blotter at the local <strong>Barangay Hall</strong>. With guidance and reprimand from <strong>Alitobee</strong>, Neyri learned the essential rule of survival: <em>Never trust or talk to strangers in dark alleys!</em></p>
+            </div>
+        </div>
+    </div>
+
+    <div id="notification-banner" class="hidden absolute top-20 left-1/2 -translate-x-1/2 z-30 glass-panel border border-yellow-400/60 text-yellow-300 px-6 py-2 rounded-full font-orbitron font-bold text-sm tracking-wide shadow-2xl pulse-anim pointer-events-none">
+        Notification Text Here
+    </div>
+
+    <script>
+        class SoundFX {
+            constructor() {
+                this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            playSwing() {
+                if (this.ctx.state === 'suspended') this.ctx.resume();
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(400, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(80, this.ctx.currentTime + 0.15);
+                gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.15);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.15);
+            }
+            playHit() {
+                if (this.ctx.state === 'suspended') this.ctx.resume();
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(150, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(30, this.ctx.currentTime + 0.2);
+                gain.gain.setValueAtTime(0.4, this.ctx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.2);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.2);
+            }
+            playLevelUp() {
+                if (this.ctx.state === 'suspended') this.ctx.resume();
+                const notes = [261.63, 329.63, 392.00, 523.25];
+                notes.forEach((freq, i) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(freq, this.ctx.currentTime + i * 0.1);
+                    gain.gain.setValueAtTime(0.2, this.ctx.currentTime + i * 0.1);
+                    gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + i * 0.1 + 0.25);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(this.ctx.currentTime + i * 0.1);
+                    osc.stop(this.ctx.currentTime + i * 0.1 + 0.25);
+                });
+            }
+        }
+        const sfx = new SoundFX();
+
+        const gameState = {
+            player: {
+                name: 'Neyri',
+                class: 'Beltsmith',
+                level: 1,
+                xp: 0,
+                nextXp: 100,
+                hp: 100,
+                maxHp: 100,
+                stamina: 100,
+                maxStamina: 100,
+                gold: 0,
+                atk: 15,
+                def: 8,
+                mindRes: 10,
+                skillPoints: 0,
+                skills: { q: false, f: false, passive: false },
+                shieldActive: false,
+                shieldTimer: 0
+            },
+            inventory: [
+                { id: 'beltbag', name: 'Neyri\'s Belt Bag', icon: 'fa-briefcase', recovered: false, desc: 'Her favorite belt bag stolen by Modus Operandi.' },
+                { id: 'cellphone', name: 'Smartphone', icon: 'fa-mobile-screen', recovered: false, desc: 'Contains contacts & evidence messages.' },
+                { id: 'bankid', name: 'Bank Accounts & ID', icon: 'fa-id-card', recovered: false, desc: 'Critical credentials swindled at traffic light.' },
+                { id: 'toys', name: 'Toy Collection', icon: 'fa-robot', recovered: false, desc: 'Alitobee\'s prized unbreakable toy collection.' },
+                { id: 'blotter', name: 'Barangay Blotter Paper', icon: 'fa-file-signature', recovered: true, desc: 'Official proof filed at the Barangay Hall.' }
+            ],
+            questStep: 0,
+            quests: [
+                { title: "1. The Strange Encounters", desc: "Walk down the street to the Dark Traffic Lights area.", objective: "Approach the Traffic Lights", targetPos: { x: 0, z: -40 } },
+                { title: "2. The Modus Trap", desc: "Defeat the Modus Operandi Strangers trying to steal your belt bag!", objective: "Defeat 3 Strangers", count: 0, maxCount: 3 },
+                { title: "3. File Blotter at Barangay", desc: "Go to the Barangay Hall node to report the theft incident.", objective: "Talk to Barangay Officer", targetPos: { x: -40, z: 20 } },
+                { title: "4. Confront the Gasoline Swindlers", desc: "Investigate the Gasoline Station for the $50,000 swindle lead.", objective: "Go to Gasoline Station", targetPos: { x: 40, z: -20 } },
+                { title: "5. Defeat Master Swindler Boss", desc: "Defeat the Master Swindler at the Traffic Lights to recover Neyri's Belt Bag!", objective: "Defeat Master Swindler Boss", bossTarget: true },
+                { title: "6. Return Home to Alitobee", desc: "Return to Alitobee's house to finish the chapter story.", objective: "Talk to Alitobee", targetPos: { x: 0, z: 35 } }
+            ]
+        };
+
+        let scene, camera, renderer;
+        let playerMesh, playerBody;
+        let keys = {};
+        let enemies = [];
+        let npcs = [];
+        let environmentObjects = [];
+        let particles = [];
+
+        function init3D() {
+            const container = document.getElementById('canvas-container');
+            
+            // Scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x060814);
+            scene.fog = new THREE.FogExp2(0x060814, 0.015);
+
+            // Camera
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            container.appendChild(renderer.domElement);
+
+            const ambientLight = new THREE.AmbientLight(0x223355, 0.7);
+            scene.add(ambientLight);
+
+            const dirLight = new THREE.DirectionalLight(0xffb07c, 0.8); // Sunset/Night city glow
+            dirLight.position.set(50, 80, -30);
+            dirLight.castShadow = true;
+            dirLight.shadow.mapSize.width = 2048;
+            dirLight.shadow.mapSize.height = 2048;
+            scene.add(dirLight);
+
+            // Ground Street
+            const groundGeo = new THREE.PlaneGeometry(160, 160);
+            const groundMat = new THREE.MeshStandardMaterial({ color: 0x11131a, roughness: 0.8 });
+            const ground = new THREE.Mesh(groundGeo, groundMat);
+            ground.rotation.x = -Math.PI / 2;
+            ground.receiveShadow = true;
+            scene.add(ground);
+
+            // Road Markings Grid
+            const gridHelper = new THREE.GridHelper(160, 32, 0xec4899, 0x1e293b);
+            gridHelper.position.y = 0.02;
+            scene.add(gridHelper);
+
+            buildCityEnvironment();
+
+            createPlayerAvatar();
+
+            spawnNPCs();
+            spawnInitialEnemies();
+
+            // Window Resize Listener
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        function buildCityEnvironment() {
+            // Helper for simple building creation
+            const createBuilding = (x, z, w, h, d, color) => {
+                const geo = new THREE.BoxGeometry(w, h, d);
+                const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.5, metalness: 0.2 });
+                const mesh = new THREE.Mesh(geo, mat);
+                mesh.position.set(x, h / 2, z);
+                mesh.castShadow = true;
+                mesh.receiveShadow = true;
+                scene.add(mesh);
+                environmentObjects.push(mesh);
+
+                // Roof Neon Border
+                const wireGeo = new THREE.BoxGeometry(w + 0.2, 0.4, d + 0.2);
+                const wireMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
+                const wire = new THREE.Mesh(wireGeo, wireMat);
+                wire.position.set(x, h + 0.2, z);
+                scene.add(wire);
+            };
+
+            // Perimeter City Buildings
+            createBuilding(-60, -60, 30, 25, 30, 0x1e1b4b);
+            createBuilding(60, -60, 30, 35, 30, 0x311042);
+            createBuilding(-60, 60, 30, 20, 30, 0x0f172a);
+            createBuilding(60, 60, 30, 30, 30, 0x111827);
+
+            // DARK TRAFFIC LIGHTS AREA (Center North)
+            const poleGeo = new THREE.CylinderGeometry(0.3, 0.3, 10);
+            const poleMat = new THREE.MeshStandardMaterial({ color: 0x334155 });
+            const trafficPole = new THREE.Mesh(poleGeo, poleMat);
+            trafficPole.position.set(0, 5, -40);
+            scene.add(trafficPole);
+
+            const lightBoxGeo = new THREE.BoxGeometry(2, 4, 1.5);
+            const lightBoxMat = new THREE.MeshStandardMaterial({ color: 0x0f172a });
+            const lightBox = new THREE.Mesh(lightBoxGeo, lightBoxMat);
+            lightBox.position.set(0, 8, -40);
+            scene.add(lightBox);
+
+            // Glowing Traffic Lights (Red / Yellow / Green)
+            const redLightGeo = new THREE.SphereGeometry(0.5, 16, 16);
+            const redLightMat = new THREE.MeshBasicMaterial({ color: 0xff0055 });
+            const redLight = new THREE.Mesh(redLightGeo, redLightMat);
+            redLight.position.set(0, 9, -39.2);
+            scene.add(redLight);
+
+            // Traffic Light Area Point Light
+            const trafficPointLight = new THREE.PointLight(0xff0055, 3, 25);
+            trafficPointLight.position.set(0, 9, -38);
+            scene.add(trafficPointLight);
+
+            // GASOLINE STATION (East Side x:40, z:-20)
+            const gasRoofGeo = new THREE.BoxGeometry(20, 1, 15);
+            const gasRoofMat = new THREE.MeshStandardMaterial({ color: 0xe11d48 });
+            const gasRoof = new THREE.Mesh(gasRoofGeo, gasRoofMat);
+            gasRoof.position.set(40, 8, -20);
+            scene.add(gasRoof);
+
+            const gasPillarGeo = new THREE.CylinderGeometry(0.5, 0.5, 8);
+            const gasPillarMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
+            const p1 = new THREE.Mesh(gasPillarGeo, gasPillarMat);
+            p1.position.set(32, 4, -20);
+            const p2 = new THREE.Mesh(gasPillarGeo, gasPillarMat);
+            p2.position.set(48, 4, -20);
+            scene.add(p1, p2);
+
+            // BARANGAY HALL (West Side x:-40, z:20)
+            const brgyGeo = new THREE.BoxGeometry(20, 10, 20);
+            const brgyMat = new THREE.MeshStandardMaterial({ color: 0x0284c7 });
+            const brgyHall = new THREE.Mesh(brgyGeo, brgyMat);
+            brgyHall.position.set(-40, 5, 20);
+            brgyHall.castShadow = true;
+            scene.add(brgyHall);
+
+            // ALITOBEE'S HOUSE (South Center x:0, z:35)
+            const houseGeo = new THREE.BoxGeometry(16, 8, 16);
+            const houseMat = new THREE.MeshStandardMaterial({ color: 0x854d0e });
+            const house = new THREE.Mesh(houseGeo, houseMat);
+            house.position.set(0, 4, 35);
+            scene.add(house);
+        }
+
+        function createPlayerAvatar() {
+            playerMesh = new THREE.Group();
+
+            // Player Body / Torso
+            const bodyGeo = new THREE.CylinderGeometry(0.6, 0.5, 1.8, 16);
+            const bodyMat = new THREE.MeshStandardMaterial({ color: 0xec4899, roughness: 0.3 }); // Neyri's signature pink outfit
+            const body = new THREE.Mesh(bodyGeo, bodyMat);
+            body.position.y = 1.4;
+            body.castShadow = true;
+            playerMesh.add(body);
+
+            // Player Head
+            const headGeo = new THREE.SphereGeometry(0.5, 16, 16);
+            const headMat = new THREE.MeshStandardMaterial({ color: 0xffdbac });
+            const head = new THREE.Mesh(headGeo, headMat);
+            head.position.y = 2.6;
+            head.castShadow = true;
+            playerMesh.add(head);
+
+            // Neyri's Iconic Belt Bag (Equipped on Waist)
+            const beltGeo = new THREE.TorusGeometry(0.62, 0.12, 8, 24);
+            const beltMat = new THREE.MeshStandardMaterial({ color: 0xeab308, metalness: 0.6 }); // Gold/Yellow beltbag
+            const belt = new THREE.Mesh(beltGeo, beltMat);
+            belt.rotation.x = Math.PI / 2;
+            belt.position.y = 1.1;
+            playerMesh.add(belt);
+
+            // Weapon / Whip Shield
+            const weaponGeo = new THREE.CylinderGeometry(0.08, 0.08, 2.2);
+            const weaponMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8, emissive: 0x0284c7 });
+            const weapon = new THREE.Mesh(weaponGeo, weaponMat);
+            weapon.rotation.z = Math.PI / 3;
+            weapon.position.set(0.8, 1.6, 0.3);
+            playerMesh.add(weapon);
+
+            playerMesh.position.set(0, 0, 15);
+            scene.add(playerMesh);
+        }
+
+        function spawnNPCs() {
+            const npcData = [
+                { name: "Alitobee", role: "Guardian & Mentor", pos: { x: 0, z: 25 }, color: 0x10b981, icon: '👨‍🏫' },
+                { name: "Barangay Officer", role: "Barangay Desk", pos: { x: -28, z: 20 }, color: 0x0284c7, icon: '👮' },
+                { name: "Gas Station Attendant", role: "Witness", pos: { x: 30, z: -20 }, color: 0xf59e0b, icon: '⛽' }
+            ];
+
+            npcData.forEach(data => {
+                const group = new THREE.Group();
+                const geo = new THREE.CylinderGeometry(0.6, 0.6, 1.8, 16);
+                const mat = new THREE.MeshStandardMaterial({ color: data.color });
+                const mesh = new THREE.Mesh(geo, mat);
+                mesh.position.y = 0.9;
+                mesh.castShadow = true;
+                group.add(mesh);
+
+                // Overhead Indicator Ring
+                const ringGeo = new THREE.RingGeometry(0.8, 1.1, 16);
+                const ringMat = new THREE.MeshBasicMaterial({ color: 0xfacc15, side: THREE.DoubleSide });
+                const ring = new THREE.Mesh(ringGeo, ringMat);
+                ring.rotation.x = -Math.PI / 2;
+                ring.position.y = 0.05;
+                group.add(ring);
+
+                group.position.set(data.pos.x, 0, data.pos.z);
+                scene.add(group);
+
+                npcs.push({ mesh: group, name: data.name, role: data.role, pos: data.pos, icon: data.icon });
+            });
+        }
+
+        function spawnInitialEnemies() {
+            const enemyPositions = [
+                { x: 5, z: -30 },
+                { x: -8, z: -35 },
+                { x: -12, z: -25 },
+                { x: 15, z: -15 },
+                { x: -20, z: -10 }
+            ];
+
+            enemyPositions.forEach((pos, index) => {
+                createEnemy("Modus Operandi Stranger", pos.x, pos.z, 40, 8, false);
+            });
+        }
+
+        function createEnemy(name, x, z, hp, atk, isBoss = false) {
+            const group = new THREE.Group();
+            const scale = isBoss ? 1.6 : 1.0;
+
+            const geo = new THREE.CylinderGeometry(0.6 * scale, 0.5 * scale, 1.8 * scale, 16);
+            const mat = new THREE.MeshStandardMaterial({ 
+                color: isBoss ? 0x991b1b : 0x475569, 
+                roughness: 0.2 
+            });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.y = 0.9 * scale;
+            mesh.castShadow = true;
+            group.add(mesh);
+
+            // Enemy Eyes / Glow
+            const eyeGeo = new THREE.SphereGeometry(0.15 * scale, 8, 8);
+            const eyeMat = new THREE.MeshBasicMaterial({ color: isBoss ? 0xff0000 : 0xfacc15 });
+            const eyes = new THREE.Mesh(eyeGeo, eyeMat);
+            eyes.position.set(0, 1.4 * scale, 0.45 * scale);
+            group.add(eyes);
+
+            group.position.set(x, 0, z);
+            scene.add(group);
+
+            enemies.push({
+                mesh: group,
+                name: name,
+                hp: hp,
+                maxHp: hp,
+                atk: atk,
+                isBoss: isBoss,
+                speed: isBoss ? 0.06 : 0.04,
+                active: true
+            });
+        }
+
+        window.addEventListener('keydown', (e) => { keys[e.key.toLowerCase()] = true; handleHotkeys(e); });
+        window.addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; });
+
+        function handleHotkeys(e) {
+            if (e.key.toLowerCase() === 'i') toggleModal('inventory-modal');
+            if (e.key.toLowerCase() === 'k') toggleModal('skills-modal');
+            if (e.key.toLowerCase() === 'l') toggleModal('story-modal');
+            if (e.code === 'Space') performAttack();
+            if (e.key.toLowerCase() === 'e') interactNearestNPC();
+            if (e.key.toLowerCase() === 'q') activateSkillQ();
+            if (e.key.toLowerCase() === 'f') activateSkillF();
+        }
+
+        function updatePlayerMovement() {
+            if (!playerMesh) return;
+
+            const speed = keys['shift'] ? 0.22 : 0.12;
+            let moveX = 0;
+            let moveZ = 0;
+
+            if (keys['w'] || keys['arrowup']) moveZ -= 1;
+            if (keys['s'] || keys['arrowdown']) moveZ += 1;
+            if (keys['a'] || keys['arrowleft']) moveX -= 1;
+            if (keys['d'] || keys['arrowright']) moveX += 1;
+
+            if (moveX !== 0 || moveZ !== 0) {
+                const dir = new THREE.Vector3(moveX, 0, moveZ).normalize();
+                playerMesh.position.x += dir.x * speed;
+                playerMesh.position.z += dir.z * speed;
+
+                // Rotate player towards movement direction
+                const targetAngle = Math.atan2(dir.x, dir.z);
+                playerMesh.rotation.y = targetAngle;
+
+                // Stamina depletion on sprint
+                if (keys['shift'] && gameState.player.stamina > 0) {
+                    gameState.player.stamina = Math.max(0, gameState.player.stamina - 0.4);
+                }
+            }
+
+            // Stamina recovery
+            if (!keys['shift'] && gameState.player.stamina < gameState.player.maxStamina) {
+                gameState.player.stamina = Math.min(gameState.player.maxStamina, gameState.player.stamina + 0.2);
+            }
+
+            // Clamp boundary
+            playerMesh.position.x = Math.max(-75, Math.min(75, playerMesh.position.x));
+            playerMesh.position.z = Math.max(-75, Math.min(75, playerMesh.position.z));
+
+            // Smooth Third-Person Camera Follow
+            const camOffset = new THREE.Vector3(0, 12, 18);
+            camera.position.x = THREE.MathUtils.lerp(camera.position.x, playerMesh.position.x + camOffset.x, 0.1);
+            camera.position.y = THREE.MathUtils.lerp(camera.position.y, playerMesh.position.y + camOffset.y, 0.1);
+            camera.position.z = THREE.MathUtils.lerp(camera.position.z, playerMesh.position.z + camOffset.z, 0.1);
+            camera.lookAt(playerMesh.position.x, playerMesh.position.y + 1.5, playerMesh.position.z);
+
+            // Update Quest Distance Logic
+            checkQuestProximity();
+        }
+
+        function performAttack() {
+            sfx.playSwing();
+
+            // Swing FX Slash Particle
+            spawnParticleRing(playerMesh.position, 0xffff00, 2);
+
+            enemies.forEach(enemy => {
+                if (!enemy.active) return;
+                const dist = playerMesh.position.distanceTo(enemy.mesh.position);
+                if (dist < 3.5) {
+                    sfx.playHit();
+                    const damage = gameState.player.atk + Math.floor(Math.random() * 5);
+                    enemy.hp -= damage;
+                    showNotification(`Hit ${enemy.name} for ${damage} DMG!`);
+
+                    // Knockback
+                    const pushDir = new THREE.Vector3().subVectors(enemy.mesh.position, playerMesh.position).normalize();
+                    enemy.mesh.position.addScaledVector(pushDir, 1.2);
+
+                    if (enemy.hp <= 0) {
+                        enemy.active = false;
+                        scene.remove(enemy.mesh);
+                        showNotification(`Defeated ${enemy.name}! +30 XP, +50 USD`);
+                        grantReward(30, 50);
+
+                        if (enemy.isBoss) {
+                            recoverItem('beltbag');
+                            recoverItem('cellphone');
+                            recoverItem('bankid');
+                            advanceQuest();
+                        } else if (gameState.questStep === 1) {
+                            const curQuest = gameState.quests[1];
+                            curQuest.count = (curQuest.count || 0) + 1;
+                            curQuest.objective = `Defeat 3 Strangers (${curQuest.count}/3)`;
+                            if (curQuest.count >= 3) {
+                                advanceQuest();
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function activateSkillQ() {
+            if (!gameState.player.skills.q) {
+                showNotification("Unlock Anti-Hypnosis Shield in Skills Menu [K] first!");
+                return;
+            }
+            sfx.playLevelUp();
+            gameState.player.shieldActive = true;
+            gameState.player.shieldTimer = 300; // ~5 seconds
+            spawnParticleRing(playerMesh.position, 0xa855f7, 4);
+            showNotification("Anti-Hypnosis Mind Shield Activated!");
+        }
+
+        function activateSkillF() {
+            if (!gameState.player.skills.f) {
+                showNotification("Unlock Belt Bag Lock in Skills Menu [K] first!");
+                return;
+            }
+            sfx.playSwing();
+            spawnParticleRing(playerMesh.position, 0xef4444, 6);
+            
+            enemies.forEach(enemy => {
+                if (!enemy.active) return;
+                const dist = playerMesh.position.distanceTo(enemy.mesh.position);
+                if (dist < 6.0) {
+                    const damage = gameState.player.atk * 2.2;
+                    enemy.hp -= damage;
+                    if (enemy.hp <= 0) {
+                        enemy.active = false;
+                        scene.remove(enemy.mesh);
+                        grantReward(40, 60);
+                    }
+                }
+            });
+            showNotification("Belt Bag Lock AOE Strike Executed!");
+        }
+
+        function updateEnemyAI() {
+            enemies.forEach(enemy => {
+                if (!enemy.active) return;
+
+                const dist = enemy.mesh.position.distanceTo(playerMesh.position);
+
+                // Aggro Range
+                if (dist < 18) {
+                    const dir = new THREE.Vector3().subVectors(playerMesh.position, enemy.mesh.position).normalize();
+                    enemy.mesh.position.x += dir.x * enemy.speed;
+                    enemy.mesh.position.z += dir.z * enemy.speed;
+                    enemy.mesh.lookAt(playerMesh.position.x, enemy.mesh.position.y, playerMesh.position.z);
+
+                    // Attack Player
+                    if (dist < 1.8) {
+                        let rawDmg = enemy.atk;
+                        if (gameState.player.shieldActive) rawDmg *= 0.5;
+                        rawDmg = Math.max(1, Math.floor(rawDmg - gameState.player.def * 0.3));
+
+                        gameState.player.hp = Math.max(0, gameState.player.hp - (rawDmg * 0.05));
+                        if (gameState.player.hp <= 0) {
+                            showNotification("Neyri was brainwashed and defeated! Respawning at home...");
+                            gameState.player.hp = gameState.player.maxHp;
+                            playerMesh.position.set(0, 0, 15);
+                        }
+                    }
+                }
+            });
+        }
+
+        function spawnParticleRing(pos, colorHex, radius) {
+            for (let i = 0; i < 16; i++) {
+                const angle = (i / 16) * Math.PI * 2;
+                const pGeo = new THREE.SphereGeometry(0.15, 8, 8);
+                const pMat = new THREE.MeshBasicMaterial({ color: colorHex });
+                const particle = new THREE.Mesh(pGeo, pMat);
+
+                particle.position.set(
+                    pos.x + Math.cos(angle) * radius,
+                    pos.y + 1.0,
+                    pos.z + Math.sin(angle) * radius
+                );
+
+                scene.add(particle);
+                particles.push({ mesh: particle, life: 20 });
+            }
+        }
+
+        function updateParticles() {
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.life--;
+                p.mesh.position.y += 0.05;
+                p.mesh.scale.multiplyScalar(0.92);
+                if (p.life <= 0) {
+                    scene.remove(p.mesh);
+                    particles.splice(i, 1);
+                }
+            }
+        }
+
+        function checkQuestProximity() {
+            const currentQuest = gameState.quests[gameState.questStep];
+            if (!currentQuest) return;
+
+            if (currentQuest.targetPos) {
+                const dist = playerMesh.position.distanceTo(new THREE.Vector3(currentQuest.targetPos.x, 0, currentQuest.targetPos.z));
+                if (dist < 4.5) {
+                    if (gameState.questStep === 0) {
+                        advanceQuest();
+                        showNotification("Traffic Light Area Reached! Modus Operandi Strangers appear!");
+                    } else if (gameState.questStep === 3) {
+                        advanceQuest();
+                        // Spawn Boss
+                        createEnemy("The Master Swindler Boss", 0, -40, 180, 18, true);
+                        showNotification("WARNING: Master Swindler Boss Has Appeared at the Traffic Lights!");
+                    }
+                }
+            }
+        }
+
+        function advanceQuest() {
+            if (gameState.questStep < gameState.quests.length - 1) {
+                gameState.questStep++;
+                sfx.playLevelUp();
+                showNotification(`Quest Updated: ${gameState.quests[gameState.questStep].title}`);
+                updateHUD();
+            }
+        }
+
+        function interactNearestNPC() {
+            npcs.forEach(npc => {
+                const dist = playerMesh.position.distanceTo(new THREE.Vector3(npc.pos.x, 0, npc.pos.z));
+                if (dist < 4.0) {
+                    triggerDialogue(npc);
+                }
+            });
+        }
+
+        function triggerDialogue(npc) {
+            const modal = document.getElementById('dialogue-modal');
+            const speaker = document.getElementById('dialogue-speaker');
+            const text = document.getElementById('dialogue-text');
+            const portrait = document.getElementById('dialogue-portrait');
+
+            speaker.innerText = `${npc.name} (${npc.role})`;
+            portrait.innerText = npc.icon;
+
+            if (npc.name === "Alitobee") {
+                if (gameState.questStep === 5) {
+                    text.innerText = "Neyri, I am glad you recovered your Belt Bag! Remember this lesson: Never talk to strangers or get swindled by fake hospital stories. Love of things may not be broken if you protect them!";
+                    recoverItem('toys');
+                    showNotification("CHAPTER 11 COMPLETE! You have mastered the rules of survival!");
+                } else {
+                    text.innerText = "Neyri, why are you coming home late? Don't talk to strangers! They are Modus Operandi who will brainwash you and swindle your belt bag. Always stay vigilant!";
+                }
+            } else if (npc.name === "Barangay Officer") {
+                if (gameState.questStep === 2) {
+                    text.innerText = "You filed a blotter regarding the 2 strangers who tricked you into surrendering your belt bag near the traffic light. Stay safe, we are issuing a warrant for the Master Swindler!";
+                    advanceQuest();
+                } else {
+                    text.innerText = "Welcome to the Barangay Desk. Always blotter any suspicious swindling incidents immediately.";
+                }
+            } else if (npc.name === "Gas Station Attendant") {
+                text.innerText = "I saw the second stranger hanging around here pretending to call his aunt for $50,000! It was all an alibi! He headed back towards the Dark Traffic Light!";
+            }
+
+            modal.classList.remove('hidden');
+        }
+
+        function grantReward(xp, gold) {
+            gameState.player.xp += xp;
+            gameState.player.gold += gold;
+
+            if (gameState.player.xp >= gameState.player.nextXp) {
+                gameState.player.level++;
+                gameState.player.xp -= gameState.player.nextXp;
+                gameState.player.nextXp = Math.floor(gameState.player.nextXp * 1.5);
+                gameState.player.skillPoints++;
+                gameState.player.atk += 5;
+                gameState.player.maxHp += 20;
+                gameState.player.hp = gameState.player.maxHp;
+
+                sfx.playLevelUp();
+                showNotification(`LEVEL UP! You reached Level ${gameState.player.level}! +1 Skill Point`);
+            }
+            updateHUD();
+        }
+
+        function recoverItem(itemId) {
+            const item = gameState.inventory.find(i => i.id === itemId);
+            if (item && !item.recovered) {
+                item.recovered = true;
+                showNotification(`RECOVERED: ${item.name}!`);
+                updateInventoryUI();
+                updateHUD();
+            }
+        }
+
+        function updateHUD() {
+            document.getElementById('hud-level').innerText = `LV${gameState.player.level}`;
+            document.getElementById('hud-gold').innerText = gameState.player.gold;
+
+            const recoveredCount = gameState.inventory.filter(i => i.recovered).length;
+            document.getElementById('hud-items-recovered').innerText = `${recoveredCount}/5`;
+
+            // Bars
+            const hpPct = (gameState.player.hp / gameState.player.maxHp) * 100;
+            document.getElementById('hp-bar').style.width = `${hpPct}%`;
+
+            const stamPct = (gameState.player.stamina / gameState.player.maxStamina) * 100;
+            document.getElementById('stamina-bar').style.width = `${stamPct}%`;
+
+            const xpPct = (gameState.player.xp / gameState.player.nextXp) * 100;
+            document.getElementById('xp-bar').style.width = `${xpPct}%`;
+
+            // Active Quest
+            const curQuest = gameState.quests[gameState.questStep];
+            if (curQuest) {
+                document.getElementById('quest-title').innerText = curQuest.title;
+                document.getElementById('quest-desc').innerText = curQuest.desc;
+                document.getElementById('quest-objective').innerText = `Objective: ${curQuest.objective}`;
+            }
+
+            // Stats UI
+            document.getElementById('stat-atk').innerText = gameState.player.atk;
+            document.getElementById('stat-def').innerText = gameState.player.def;
+            document.getElementById('stat-maxhp').innerText = gameState.player.maxHp;
+            document.getElementById('stat-maxstam').innerText = gameState.player.maxStamina;
+            document.getElementById('skill-points-display').innerText = gameState.player.skillPoints;
+        }
+
+        function renderMinimap() {
+            const canvas = document.getElementById('minimap-canvas');
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            const mapCenter = { x: canvas.width / 2, y: canvas.height / 2 };
+            const scale = 0.8;
+
+            // Draw Radar Grid Rings
+            ctx.strokeStyle = 'rgba(56, 189, 248, 0.2)';
+            ctx.beginPath();
+            ctx.arc(mapCenter.x, mapCenter.y, 30, 0, Math.PI * 2);
+            ctx.arc(mapCenter.x, mapCenter.y, 60, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Draw NPCs (Yellow dots)
+            npcs.forEach(npc => {
+                const relX = mapCenter.x + (npc.pos.x - playerMesh.position.x) * scale;
+                const relY = mapCenter.y + (npc.pos.z - playerMesh.position.z) * scale;
+                ctx.fillStyle = '#facc15';
+                ctx.beginPath();
+                ctx.arc(relX, relY, 3, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            // Draw Enemies (Red dots)
+            enemies.forEach(enemy => {
+                if (!enemy.active) return;
+                const relX = mapCenter.x + (enemy.mesh.position.x - playerMesh.position.x) * scale;
+                const relY = mapCenter.y + (enemy.mesh.position.z - playerMesh.position.z) * scale;
+                ctx.fillStyle = enemy.isBoss ? '#ff0000' : '#ef4444';
+                ctx.beginPath();
+                ctx.arc(relX, relY, enemy.isBoss ? 5 : 3, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            // Draw Player (Cyan Center)
+            ctx.fillStyle = '#06b6d4';
+            ctx.beginPath();
+            ctx.arc(mapCenter.x, mapCenter.y, 4, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        function updateInventoryUI() {
+            const grid = document.getElementById('inventory-items-grid');
+            grid.innerHTML = '';
+
+            gameState.inventory.forEach(item => {
+                const card = document.createElement('div');
+                card.className = `p-3 rounded-lg border flex flex-col items-center text-center transition ${
+                    item.recovered 
+                        ? 'bg-pink-950/40 border-pink-500/60 text-white' 
+                        : 'bg-gray-900/40 border-gray-800 text-gray-500 opacity-60'
+                }`;
+                card.innerHTML = `
+                    <div class="text-2xl mb-1 ${item.recovered ? 'text-pink-400' : 'text-gray-600'}"><i class="fa-solid ${item.icon}"></i></div>
+                    <div class="font-orbitron font-bold text-xs mb-1">${item.name}</div>
+                    <div class="text-[10px] text-gray-400">${item.recovered ? 'RECOVERED' : 'STOLEN'}</div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function toggleModal(id) {
+            const modal = document.getElementById(id);
+            if (modal.classList.contains('hidden')) {
+                modal.classList.remove('hidden');
+            } else {
+                modal.classList.add('hidden');
+            }
+        }
+
+        document.querySelectorAll('.close-modal').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.target.closest('.z-40, .z-50').classList.add('hidden');
+            });
+        });
+
+        document.getElementById('dialogue-next-btn').addEventListener('click', () => {
+            document.getElementById('dialogue-modal').classList.add('hidden');
+        });
+
+        document.getElementById('btn-toggle-inv').addEventListener('click', () => {
+            updateInventoryUI();
+            toggleModal('inventory-modal');
+        });
+
+        document.getElementById('btn-toggle-skills').addEventListener('click', () => toggleModal('skills-modal'));
+        document.getElementById('btn-toggle-story').addEventListener('click', () => toggleModal('story-modal'));
+
+        // Skill Upgrades
+        document.getElementById('learn-skill-1').addEventListener('click', () => {
+            if (gameState.player.skillPoints >= 1 && !gameState.player.skills.q) {
+                gameState.player.skillPoints--;
+                gameState.player.skills.q = true;
+                showNotification("Learned Skill: Anti-Hypnosis Shield (Q)");
+                updateHUD();
+            }
+        });
+
+        document.getElementById('learn-skill-2').addEventListener('click', () => {
+            if (gameState.player.skillPoints >= 1 && !gameState.player.skills.f) {
+                gameState.player.skillPoints--;
+                gameState.player.skills.f = true;
+                showNotification("Learned Skill: Belt Bag Lock (F)");
+                updateHUD();
+            }
+        });
+
+        document.getElementById('learn-skill-3').addEventListener('click', () => {
+            if (gameState.player.skillPoints >= 1 && !gameState.player.skills.passive) {
+                gameState.player.skillPoints--;
+                gameState.player.skills.passive = true;
+                gameState.player.atk += 10;
+                showNotification("Learned Passive: Barangay Blotter Strike (+10 ATK)");
+                updateHUD();
+            }
+        });
+
+        // Touch Control Buttons
+        document.getElementById('btn-attack').addEventListener('click', performAttack);
+        document.getElementById('btn-skill-q').addEventListener('click', activateSkillQ);
+        document.getElementById('btn-skill-f').addEventListener('click', activateSkillF);
+        document.getElementById('btn-interact').addEventListener('click', interactNearestNPC);
+
+        function showNotification(msg) {
+            const banner = document.getElementById('notification-banner');
+            banner.innerText = msg;
+            banner.classList.remove('hidden');
+            setTimeout(() => {
+                banner.classList.add('hidden');
+            }, 3000);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Movement & Logic Updates
+            updatePlayerMovement();
+            updateEnemyAI();
+            updateParticles();
+
+            // Shield Timer Logic
+            if (gameState.player.shieldActive) {
+                gameState.player.shieldTimer--;
+                if (gameState.player.shieldTimer <= 0) {
+                    gameState.player.shieldActive = false;
+                }
+            }
+
+            // Render Minimap
+            renderMinimap();
+
+            // Render 3D Scene
+            renderer.render(scene, camera);
+        }
+
+        window.onload = () => {
+            init3D();
+            updateHUD();
+            updateInventoryUI();
+            animate();
+            showNotification("Welcome to Chapter 11 - Love Of Things May Broken!");
+        };
+    </script>
+</body>
+</html>
